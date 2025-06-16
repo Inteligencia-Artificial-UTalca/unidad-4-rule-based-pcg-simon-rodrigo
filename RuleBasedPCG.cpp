@@ -44,6 +44,63 @@ Map cellularAutomata(const Map& currentMap, int W, int H, int R, double U) {
     return newMap;
 }
 
+void changeDirection(int& x, int& y, int dir, int w, int h)
+{
+    bool canContinue = true;
+
+    std::random_device rd;
+    std::mt19937 mt(rd());
+
+    while (canContinue)
+    {
+         switch (dir)
+        {
+        case 0:
+            if(y + 1 >= h)
+            {
+                std::uniform_int_distribution<int> dist(0, 3);
+                dir =  dist(mt);
+                break;
+            }
+            y++;
+            canContinue = false;
+            break;
+        case 1:
+            if(y - 1 < 0)
+            {
+                std::uniform_int_distribution<int> dist(0, 3);
+                dir =  dist(mt);
+                break;
+            }
+            y--;
+            canContinue = false;
+            break;
+        case 2:
+            if(x + 1 >= w)
+            {
+                std::uniform_int_distribution<int> dist(0, 3);
+                dir =  dist(mt);
+                break;
+            }
+            x++;
+            canContinue = false;
+            break;
+        case 3:
+            if(x - 1 < 0)
+            {
+                std::uniform_int_distribution<int> dist(0, 3);
+                dir =  dist(mt);
+                break;
+            }
+            x--;
+            canContinue = false;
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 /**
  * @brief Function to implement the Drunk Agent logic.
  * It should take a map and parameters controlling the agent's behavior,
@@ -69,7 +126,9 @@ Map drunkAgent(const Map& currentMap, int W, int H, int J, int I, int roomSizeX,
                double probChangeDirection, double probIncreaseChange,
                int& agentX, int& agentY) {
     Map newMap = currentMap; // The new map is a copy of the current one
-
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
     // TODO: IMPLEMENTATION GOES HERE for the Drunk Agent logic.
     // The agent should move randomly.
     // You'll need a random number generator.
@@ -79,6 +138,55 @@ Map drunkAgent(const Map& currentMap, int W, int H, int J, int I, int roomSizeX,
     // - How it modifies the map (e.g., leaving a trail, creating rooms, etc.).
     // - Use the provided parameters (J, I, roomSizeX, roomSizeY, probabilities)
     //   to control its behavior.
+    std::uniform_real_distribution<float> distFloat(0.0, 1.1);
+    std::srand(std::time(0));
+    int currentDir = 0;
+
+    for(int i = 0; i < J; i++)
+    {
+        for(int j = 0; j < I; j++)
+        {
+            int direction = std::rand() % 4;
+            float changeProb = distFloat(gen);
+            
+
+            if(j == 0)
+            {
+                changeDirection(agentX, agentY, direction, W, H);
+                currentDir = direction;
+            }
+            else if(j != 0 && changeProb <= probChangeDirection)
+            {
+                currentDir = direction;
+                changeDirection(agentX, agentY, currentDir, W, H);
+            }
+            else
+            {
+                changeDirection(agentX, agentY, currentDir, W, H);
+            }
+
+            newMap[agentX][agentY] = 1;
+        }
+    }
+    /*
+       for(cantidad de caminatas)
+       {
+         for(cantidad de pasos)
+         {
+            //empieza a moverse
+            x , y;
+
+            random;
+
+            switch(random)
+            case1:
+               direcciones...
+            //termina de moverse
+         }
+        
+         
+       }
+    */
 
     return newMap;
 }
