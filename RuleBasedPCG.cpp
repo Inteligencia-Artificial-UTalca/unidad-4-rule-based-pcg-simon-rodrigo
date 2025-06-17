@@ -33,6 +33,20 @@ void printMap(const Map& map) {
  * @param U Threshold to decide if the current cell becomes 1 or 0.
  * @return The map after applying the cellular automata rules.
  */
+
+void initializeRandomMap(Map& map, int W, int H, double aliveProbability = 0.45) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dist(0.0, 1.0);
+
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            map[y][x] = (dist(gen) < aliveProbability) ? 1 : 0;
+        }
+    }
+}
+
+
 Map cellularAutomata(const Map& currentMap, int W, int H, int R, double U) {
     Map newMap = currentMap; // Initially, the new map is a copy of the current one
 
@@ -41,62 +55,78 @@ Map cellularAutomata(const Map& currentMap, int W, int H, int R, double U) {
     // Remember that updates should be based on the 'currentMap' state
     // and applied to the 'newMap' to avoid race conditions within the same iteration.
 
+    for (int y = 0; y < H; ++y) {
+        for (int x = 0; x < W; ++x) {
+            int onesCount = 0;
+            int totalCells = 0;
+
+            // Revisar vecindario en un cuadrado de radio R
+            for (int dy = -R; dy <= R; ++dy) {
+                for (int dx = -R; dx <= R; ++dx) {
+                    int nx = x + dx;
+                    int ny = y + dy;
+
+                    // Ignorar la propia celda
+                    if (dx == 0 && dy == 0) continue;
+
+                    // Puedes elegir si considerar celdas fuera del mapa como 0, 1 o aleatorio
+                    if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+                        if (currentMap[ny][nx] == 1)
+                            onesCount++;
+                    } else {
+                        // Considerar celdas fuera del borde como 1
+                        onesCount++;
+                    }
+
+                    totalCells++;
+                }
+            }
+
+            // Calcular proporción de 1s
+            double density = static_cast<double>(onesCount) / totalCells;
+            newMap[y][x] = (density >= U) ? 1 : 0;
+        }
+    }
+
     return newMap;
 }
 
-void changeDirection(int& x, int& y, int dir, int w, int h)
+void changeDirection(int& x, int& y, int& dir, int w, int h)
 {
-    bool canContinue = true;
-
     std::random_device rd;
     std::mt19937 mt(rd());
+    std::uniform_int_distribution<int> dist(0, 3);
+    bool moved = false;
 
-    while (canContinue)
-    {
-         switch (dir)
-        {
-        case 0:
-            if(y + 1 >= h)
-            {
-                std::uniform_int_distribution<int> dist(0, 3);
-                dir =  dist(mt);
-                break;
-            }
-            y++;
-            canContinue = false;
+    for (int attempts = 0; attempts < 10 && !moved; ++attempts) {
+        switch (dir) {
+        case 0: // abajo
+            if (y + 1 < h) { y++; moved = true; break; }
             break;
-        case 1:
-            if(y - 1 < 0)
-            {
-                std::uniform_int_distribution<int> dist(0, 3);
-                dir =  dist(mt);
-                break;
-            }
-            y--;
-            canContinue = false;
+        case 1: // arriba
+            if (y - 1 >= 0) { y--; moved = true; break; }
             break;
-        case 2:
-            if(x + 1 >= w)
-            {
-                std::uniform_int_distribution<int> dist(0, 3);
-                dir =  dist(mt);
-                break;
-            }
-            x++;
-            canContinue = false;
+        case 2: // derecha
+            if (x + 1 < w) { x++; moved = true; break; }
             break;
-        case 3:
-            if(x - 1 < 0)
-            {
-                std::uniform_int_distribution<int> dist(0, 3);
-                dir =  dist(mt);
-                break;
-            }
-            x--;
-            canContinue = false;
+        case 3: // izquierda
+            if (x - 1 >= 0) { x--; moved = true; break; }
             break;
-        default:
-            break;
+        }
+        if (!moved)
+            dir = dist(mt); // elige una nueva dirección si no puede moverse
+    }
+}
+
+void generateRoom(Map& map, int x, int y, int roomW, int roomH) {
+    int startX = std::max(0, x - roomW / 2);
+    int startY = std::max(0, y - roomH / 2);
+    int endX = std::min((int)map[0].size() - 1, x + roomW / 2); // columnas
+    int endY = std::min((int)map.size() - 1, y + roomH / 2);    // filas
+
+    for (int i = startY; i <= endY; ++i) {
+        for (int j = startX; j <= endX; ++j) {
+            map[i][j] = 1;
         }
     }
 }
@@ -129,64 +159,37 @@ Map drunkAgent(const Map& currentMap, int W, int H, int J, int I, int roomSizeX,
     
     std::random_device rd;
     std::mt19937 gen(rd());
-    // TODO: IMPLEMENTATION GOES HERE for the Drunk Agent logic.
-    // The agent should move randomly.
-    // You'll need a random number generator.
-    // Consider:
-    // - How the agent moves (possible steps).
-    // - What it does if it encounters a border or an obstacle (if applicable).
-    // - How it modifies the map (e.g., leaving a trail, creating rooms, etc.).
-    // - Use the provided parameters (J, I, roomSizeX, roomSizeY, probabilities)
-    //   to control its behavior.
-    std::uniform_real_distribution<float> distFloat(0.0, 1.1);
-    std::srand(std::time(0));
-    int currentDir = 0;
+    std::uniform_real_distribution<float> distFloat(0.0, 1.0);
+    std::uniform_int_distribution<int> dirGen(0, 3);
+    int currentDir = dirGen(gen);//direccion inicial aleatoria
 
-    for(int i = 0; i < J; i++)
-    {
-        for(int j = 0; j < I; j++)
-        {
-            int direction = std::rand() % 4;
+    for (int i = 0; i < J; ++i) {
+        for (int j = 0; j < I; ++j) {
             float changeProb = distFloat(gen);
-            
 
-            if(j == 0)
-            {
-                changeDirection(agentX, agentY, direction, W, H);
-                currentDir = direction;
-            }
-            else if(j != 0 && changeProb <= probChangeDirection)
-            {
-                currentDir = direction;
+            if (j == 0 || changeProb <= probChangeDirection) {
+                currentDir = dirGen(gen);//nueva direccion aleatoria
                 changeDirection(agentX, agentY, currentDir, W, H);
-            }
-            else
-            {
+                probChangeDirection = 0.2;//reiniciar
+            } else {
                 changeDirection(agentX, agentY, currentDir, W, H);
+                probChangeDirection += probIncreaseChange;
             }
 
-            newMap[agentX][agentY] = 1;
+            //Marca el paso del agente
+            if (agentY >= 0 && agentY < H && agentX >= 0 && agentX < W) {
+                newMap[agentY][agentX] = 1;
+            }
+
+            float roomProb = distFloat(gen);
+            if (roomProb <= probGenerateRoom) {
+                generateRoom(newMap, agentX, agentY, roomSizeX, roomSizeY);
+                probGenerateRoom = 0.1;
+            } else {
+                probGenerateRoom += probIncreaseRoom;
+            }
         }
     }
-    /*
-       for(cantidad de caminatas)
-       {
-         for(cantidad de pasos)
-         {
-            //empieza a moverse
-            x , y;
-
-            random;
-
-            switch(random)
-            case1:
-               direcciones...
-            //termina de moverse
-         }
-        
-         
-       }
-    */
 
     return newMap;
 }
@@ -195,9 +198,11 @@ int main() {
     std::cout << "--- CELLULAR AUTOMATA AND DRUNK AGENT SIMULATION ---" << std::endl;
 
     // --- Initial Map Configuration ---
-    int mapRows = 10;
-    int mapCols = 20;
+    int mapRows = 20;
+    int mapCols = 30;
     Map myMap(mapRows, std::vector<int>(mapCols, 0)); // Map initialized with zeros
+
+    Map DrunkMap = myMap;//este mapa sera exclusivo para drunk agent
 
     // TODO: IMPLEMENTATION GOES HERE: Initialize the map with some pattern or initial state.
     // For example, you might set some cells to 1 for the cellular automata
@@ -209,9 +214,7 @@ int main() {
     // If your agent modifies the map at start, you could do it here:
     // myMap[drunkAgentX][drunkAgentY] = 2; // Assuming '2' represents the agent
 
-    std::cout << "\nInitial map state:" << std::endl;
-    printMap(myMap);
-
+    
     // --- Simulation Parameters ---
     int numIterations = 5; // Number of simulation steps
 
@@ -226,7 +229,7 @@ int main() {
     int da_H = mapRows;
     int da_J = 5;      // Number of "walks"
     int da_I = 10;     // Steps per walk
-    int da_roomSizeX = 5;
+    int da_roomSizeX = 4;
     int da_roomSizeY = 3;
     double da_probGenerateRoom = 0.1;
     double da_probIncreaseRoom = 0.05;
@@ -234,19 +237,23 @@ int main() {
     double da_probIncreaseChange = 0.03;
 
 
+    initializeRandomMap(myMap, mapCols, mapRows, 0.45);//inicializar el mapa con ruidos aleatorios
+    std::cout << "\nInitial map state (con ruido aleatorio):" << std::endl;
+    printMap(myMap);
+
     // --- Main Simulation Loop ---
     for (int iteration = 0; iteration < numIterations; ++iteration) {
-        std::cout << "\n--- Iteration " << iteration + 1 << " ---" << std::endl;
+        std::cout << "\n--- Cellurar automata Iteration " << iteration + 1 << " ---" << std::endl;
 
         // TODO: IMPLEMENTATION GOES HERE: Call the Cellular Automata and/or Drunk Agent functions.
         // The order of calls will depend on how you want them to interact.
 
         // Example: First the cellular automata, then the agent
         myMap = cellularAutomata(myMap, ca_W, ca_H, ca_R, ca_U);
-        myMap = drunkAgent(myMap, da_W, da_H, da_J, da_I, da_roomSizeX, da_roomSizeY,
+        /*myMap = drunkAgent(myMap, da_W, da_H, da_J, da_I, da_roomSizeX, da_roomSizeY,
                            da_probGenerateRoom, da_probIncreaseRoom,
                            da_probChangeDirection, da_probIncreaseChange,
-                           drunkAgentX, drunkAgentY);
+                           drunkAgentX, drunkAgentY);*/
 
         printMap(myMap);
 
@@ -257,5 +264,32 @@ int main() {
     }
 
     std::cout << "\n--- Simulation Finished ---" << std::endl;
+
+    std::cout << "\nInitial map state:" << std::endl;
+    printMap(DrunkMap);
+    // --- Main Simulation Loop ---
+    for (int iteration = 0; iteration < numIterations; ++iteration) {
+        std::cout << "\n--- Drunk agent Iteration " << iteration + 1 << " ---" << std::endl;
+
+        // TODO: IMPLEMENTATION GOES HERE: Call the Cellular Automata and/or Drunk Agent functions.
+        // The order of calls will depend on how you want them to interact.
+
+        // Example: First the cellular automata, then the agent
+        //myMap = cellularAutomata(myMap, ca_W, ca_H, ca_R, ca_U);
+        DrunkMap = drunkAgent(DrunkMap, da_W, da_H, da_J, da_I, da_roomSizeX, da_roomSizeY,
+                           da_probGenerateRoom, da_probIncreaseRoom,
+                           da_probChangeDirection, da_probIncreaseChange,
+                           drunkAgentX, drunkAgentY);
+
+        printMap(DrunkMap);
+
+        // You can add a delay to visualize the simulation step by step
+        // #include <thread> // For std::this_thread::sleep_for
+        // #include <chrono> // For std::chrono::milliseconds
+        // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+
+    std::cout << "\n--- Simulation Finished ---" << std::endl;
+
     return 0;
 }
