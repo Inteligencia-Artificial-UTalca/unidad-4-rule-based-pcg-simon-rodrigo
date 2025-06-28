@@ -29,11 +29,7 @@ enum class Difficulty {
     Hard
 };
 
-/*SliceMode getSliceMode(const Slice& s);
-double getBaseSliceDesirability(const Slice& s, Difficulty difficulty);//considera dificultad
-//funciones auxiliares
-bool getSliceContainsSpikes(const Slice& s);
-bool getSliceContainsGround(const Slice& s);*/
+
 
 
 
@@ -111,7 +107,7 @@ void printLevel(const std::vector<Slice>& level) {
         std::cout << slice << std::endl;
 }
 
-//implementación de las funciones de modo y deseabilidad
+//implementacion de las funciones de modo y deseabilidad
 
 SliceMode getSliceMode(const Slice& s) {
     bool hasCubePortal = s.find("#### c ####") != std::string::npos;
@@ -187,7 +183,7 @@ double getBaseSliceDesirability(const Slice& s, Difficulty difficulty)//consider
     return std::max(desirability, -10.0);
 }
 
-//Función generateLevelWithMatrix considera la matriz de adyacencia para probabilidades, longitud del nivel y dificultad
+//funcion generateLevelWithMatrix considera la matriz de adyacencia para probabilidades, longitud del nivel y dificultad
 
 std::vector<Slice> generateLevelWithMatrix(const std::vector<Slice>& indexToSlice,
                                            const std::vector<std::vector<double>>& adjacencyMatrix,
